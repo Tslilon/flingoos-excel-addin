@@ -17,6 +17,7 @@
   <!-- Icon information for the add-in -->
   <IconUrl DefaultValue="https://flingoos-excel.vercel.app/assets/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://flingoos-excel.vercel.app/assets/icon-64.png" />
+  <SupportUrl DefaultValue="https://flingoos-excel.vercel.app/help.html" />
   
   <!-- Office hosts where this add-in can be run -->
   <Hosts>
@@ -37,9 +38,9 @@
       <Host xsi:type="Workbook">
         <DesktopFormFactor>
           <GetStarted>
-            <Title>Flingoos Excel Logger</Title>
-            <Description>Captures Excel actions for workflow tracing.</Description>
-            <LearnMoreUrl>https://flingoos-excel.vercel.app/help.html</LearnMoreUrl>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
           </GetStarted>
           
           <!-- Task pane integration -->
@@ -87,14 +88,17 @@
         <bt:Url id="Taskpane.Url" DefaultValue="https://flingoos-excel.vercel.app/taskpane.html" />
         <bt:Url id="Commands.Url" DefaultValue="https://flingoos-excel.vercel.app/commands.html" />
         <bt:Url id="Help.Url" DefaultValue="https://flingoos-excel.vercel.app/help.html" />
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://flingoos-excel.vercel.app/help.html" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Commands.Label" DefaultValue="Flingoos" />
         <bt:String id="TaskpaneButton.Label" DefaultValue="Excel Logger" />
         <bt:String id="TaskpaneButton.Title" DefaultValue="Flingoos Excel Logger" />
+        <bt:String id="GetStarted.Title" DefaultValue="Flingoos Excel Logger" />
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Opens the Flingoos Excel Logger" />
+        <bt:String id="GetStarted.Description" DefaultValue="Captures Excel actions for workflow tracing." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
