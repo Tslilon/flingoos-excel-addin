@@ -5,7 +5,7 @@
     'use strict';
 
     // Configuration
-    const LISTENER_URL = 'http://localhost:5000/log';
+    const LISTENER_URL = 'http://localhost:5555/log';
     const EVENT_BATCH_INTERVAL = 1000; // milliseconds
     const MAX_RETRIES = 3;
 
