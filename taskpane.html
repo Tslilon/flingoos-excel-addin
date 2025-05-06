@@ -65,7 +65,7 @@
 
         .log {
             margin-top: 20px;
-            height: 200px; /* Fixed height */
+            height: 150px; /* Fixed height */
             overflow-y: auto;
             padding: 10px;
             background-color: rgba(0, 0, 0, 0.05);
@@ -74,6 +74,11 @@
             font-size: 12px;
             /* Ensure text is visible in all themes */
             color: inherit;
+        }
+        
+        .log div {
+            margin-bottom: 4px;
+            padding: 2px 0;
         }
 
         .event-types {
@@ -114,7 +119,7 @@
     </div>
 
     <div id="log" class="log">
-        Waiting to start logging...
+        <!-- Important log messages will appear here -->
     </div>
 
     <div class="event-types">
@@ -129,7 +134,15 @@
     </div>
 
     <div class="note">
-        Events are automatically logged when connected to the local server.
+        Events are automatically logged when connected to the local server. Only important status messages are shown above.
+        <br><br>
+        <small>The add-in will automatically reconnect using a tiered strategy:
+            <ol>
+                <li>Every 1 second for 15 minutes</li>
+                <li>Every 3 seconds for 15 minutes</li>
+                <li>Every 1 minute indefinitely</li>
+            </ol>
+        </small>
     </div>
 </body>
 </html> 

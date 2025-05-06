@@ -7,8 +7,16 @@
     // Configuration
     const LISTENER_URL = 'https://localhost:5555/log';
     const EVENT_BATCH_INTERVAL = 1000; // milliseconds
-    const MAX_RETRIES = 3;
+    // const MAX_RETRIES = 10; // Removed - no longer needed with infinite retry
     const CONTENT_THROTTLE_TIME = 200; // milliseconds throttle for content capture
+    const MAX_LOG_ENTRIES = 5; // Maximum number of log entries to display
+    
+    // Retry strategy configuration
+    const RETRY_TIER_1_INTERVAL = 1000; // 1 second
+    const RETRY_TIER_1_DURATION = 15 * 60 * 1000; // 15 minutes
+    const RETRY_TIER_2_INTERVAL = 3000; // 3 seconds
+    const RETRY_TIER_2_DURATION = 15 * 60 * 1000; // 15 minutes
+    const RETRY_TIER_3_INTERVAL = 60000; // 1 minute
 
     // State
     let isLogging = false;
@@ -16,6 +24,7 @@
     let batchInterval = null;
     let connectionStatus = 'disconnected';
     let retryCount = 0;
+    let retryStartTime = 0;
     let lastContentCapture = 0;
 
     // Initialize when Office is ready
@@ -67,16 +76,38 @@
         });
     }
 
-    // Retry connection with exponential backoff
+    // Retry connection with tiered strategy
     function retryWithBackoff() {
-        if (retryCount < MAX_RETRIES) {
-            const delay = Math.pow(2, retryCount) * 1000;
-            retryCount++;
-            appendToLog(`Connection failed. Retrying in ${delay/1000} seconds...`);
-            setTimeout(checkServerConnection, delay);
-        } else {
-            appendToLog('Could not connect to listener server. Please check if the server is running.');
+        const now = Date.now();
+        
+        // Initialize retry start time if this is the first retry
+        if (retryCount === 0) {
+            retryStartTime = now;
         }
+        
+        retryCount++;
+        const elapsedTime = now - retryStartTime;
+        let nextRetryInterval;
+        let retryTier;
+        
+        // Tier 1: Every second for first 15 minutes
+        if (elapsedTime < RETRY_TIER_1_DURATION) {
+            nextRetryInterval = RETRY_TIER_1_INTERVAL;
+            retryTier = 1;
+        }
+        // Tier 2: Every 3 seconds for next 15 minutes
+        else if (elapsedTime < RETRY_TIER_1_DURATION + RETRY_TIER_2_DURATION) {
+            nextRetryInterval = RETRY_TIER_2_INTERVAL;
+            retryTier = 2;
+        }
+        // Tier 3: Every minute indefinitely
+        else {
+            nextRetryInterval = RETRY_TIER_3_INTERVAL;
+            retryTier = 3;
+        }
+        
+        appendToLog(`Connection attempt #${retryCount} failed. Tier ${retryTier}: Retrying in ${nextRetryInterval/1000} seconds...`);
+        setTimeout(checkServerConnection, nextRetryInterval);
     }
 
     // Update the connection status UI
@@ -84,13 +115,32 @@
         connectionStatus = status;
         const statusElement = document.getElementById('status');
         statusElement.className = `status ${status}`;
-        statusElement.innerText = `Status: ${status === 'connected' ? 'Connected' : 'Disconnected'}`;
         
-        // We don't need to update buttons anymore since they're hidden
-        // document.getElementById('start-logging').disabled = (status !== 'connected' || isLogging);
-        // document.getElementById('stop-logging').disabled = !isLogging;
-        
-        appendToLog(`Connection status: ${status}`);
+        if (status === 'connected') {
+            statusElement.innerHTML = `<div class="status-dot"></div><div>Status: Connected</div>`;
+            retryCount = 0; // Reset retry count when connected
+            retryStartTime = 0;
+            appendToLog(`Connection status: ${status}`);
+        } else {
+            // Show retry information in the status display
+            if (retryCount > 0) {
+                const elapsedTime = Math.floor((Date.now() - retryStartTime) / 1000);
+                let retryTier;
+                
+                if (elapsedTime < RETRY_TIER_1_DURATION / 1000) {
+                    retryTier = 1;
+                } else if (elapsedTime < (RETRY_TIER_1_DURATION + RETRY_TIER_2_DURATION) / 1000) {
+                    retryTier = 2;
+                } else {
+                    retryTier = 3;
+                }
+                
+                statusElement.innerHTML = `<div class="status-dot"></div><div>Status: Disconnected (Retry #${retryCount}, Tier ${retryTier})</div>`;
+            } else {
+                statusElement.innerHTML = `<div class="status-dot"></div><div>Status: Disconnected</div>`;
+            }
+            appendToLog(`Connection status: ${status}`);
+        }
     }
     
     // Start logging Excel events
@@ -498,10 +548,31 @@
     
     // Append a message to the log display
     function appendToLog(message) {
-        const log = document.getElementById('log');
-        const timestamp = new Date().toLocaleTimeString();
-        log.innerHTML += `[${timestamp}] ${message}<br>`;
-        log.scrollTop = log.scrollHeight;
+        console.log(message); // Still log to console
+        
+        // Only show important messages in the UI log
+        if (message.includes("error") || 
+            message.includes("failed") || 
+            message.includes("Connected") || 
+            message.includes("Disconnected") ||
+            message.includes("Started logging") ||
+            message.includes("Stopped logging")) {
+            
+            const logElement = document.getElementById('log');
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(logEntry);
+            
+            // Limit the number of visible log entries
+            while (logElement.children.length > MAX_LOG_ENTRIES) {
+                logElement.removeChild(logElement.firstChild);
+            }
+            
+            // Auto-scroll to bottom
+            logElement.scrollTop = logElement.scrollHeight;
+        }
     }
 
     // Capture cell content with throttling
