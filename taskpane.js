@@ -5,7 +5,7 @@
     'use strict';
 
     // Configuration
-    const LISTENER_URL = 'http://localhost:5555/log';
+    const LISTENER_URL = 'https://localhost:5555/log';
     const EVENT_BATCH_INTERVAL = 1000; // milliseconds
     const MAX_RETRIES = 3;
 
@@ -19,8 +19,9 @@
     // Initialize when Office is ready
     Office.onReady(function(info) {
         if (info.host === Office.HostType.Excel) {
-            document.getElementById('start-logging').onclick = startLogging;
-            document.getElementById('stop-logging').onclick = stopLogging;
+            // We no longer need these button handlers since we auto-start
+            // document.getElementById('start-logging').onclick = startLogging;
+            // document.getElementById('stop-logging').onclick = stopLogging;
             
             // Check if server is available
             checkServerConnection();
@@ -32,6 +33,7 @@
 
     // Check if the listener server is available
     function checkServerConnection() {
+        console.log('Checking connection to HTTPS server...');
         fetch(LISTENER_URL, {
             method: 'POST',
             headers: {
@@ -44,15 +46,20 @@
             })
         })
         .then(response => {
+            console.log('Server response:', response.status);
             if (response.ok) {
                 updateConnectionStatus('connected');
                 retryCount = 0;
+                // Auto-start logging when connection is established
+                startLogging();
             } else {
+                console.log('Server returned error status:', response.status);
                 updateConnectionStatus('disconnected');
                 retryWithBackoff();
             }
         })
         .catch(error => {
+            console.log('Connection error details:', error.message, error.name);
             updateConnectionStatus('disconnected');
             retryWithBackoff();
         });
@@ -77,9 +84,9 @@
         statusElement.className = `status ${status}`;
         statusElement.innerText = `Status: ${status === 'connected' ? 'Connected' : 'Disconnected'}`;
         
-        // Update button states
-        document.getElementById('start-logging').disabled = (status !== 'connected' || isLogging);
-        document.getElementById('stop-logging').disabled = !isLogging;
+        // We don't need to update buttons anymore since they're hidden
+        // document.getElementById('start-logging').disabled = (status !== 'connected' || isLogging);
+        // document.getElementById('stop-logging').disabled = !isLogging;
         
         appendToLog(`Connection status: ${status}`);
     }
@@ -91,11 +98,16 @@
             return;
         }
         
+        if (isLogging) {
+            // Already logging
+            return;
+        }
+        
         isLogging = true;
         
         // Update UI
-        document.getElementById('start-logging').disabled = true;
-        document.getElementById('stop-logging').disabled = false;
+        // document.getElementById('start-logging').disabled = true;
+        // document.getElementById('stop-logging').disabled = false;
         appendToLog('Started logging Excel events');
         
         // Register event handlers
@@ -110,11 +122,15 @@
     
     // Stop logging Excel events
     function stopLogging() {
+        if (!isLogging) {
+            return;
+        }
+        
         isLogging = false;
         
         // Update UI
-        document.getElementById('start-logging').disabled = (connectionStatus !== 'connected');
-        document.getElementById('stop-logging').disabled = true;
+        // document.getElementById('start-logging').disabled = (connectionStatus !== 'connected');
+        // document.getElementById('stop-logging').disabled = true;
         appendToLog('Stopped logging Excel events');
         
         // Unregister event handlers

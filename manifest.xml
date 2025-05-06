@@ -8,7 +8,7 @@
 
   <!-- Basic settings: provides information about the add-in -->
   <Id>4d87c5d8-3171-4c4f-8d5b-2fa7bbbf9bc2</Id>
-  <Version>1.0.0.0</Version>
+  <Version>1.0.0.2</Version>
   <ProviderName>Flingoos</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Flingoos Excel Logger" />
