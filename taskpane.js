@@ -8,6 +8,7 @@
     const LISTENER_URL = 'https://localhost:5555/log';
     const EVENT_BATCH_INTERVAL = 1000; // milliseconds
     const MAX_RETRIES = 3;
+    const CONTENT_THROTTLE_TIME = 200; // milliseconds throttle for content capture
 
     // State
     let isLogging = false;
@@ -15,6 +16,7 @@
     let batchInterval = null;
     let connectionStatus = 'disconnected';
     let retryCount = 0;
+    let lastContentCapture = 0;
 
     // Initialize when Office is ready
     Office.onReady(function(info) {
@@ -165,6 +167,9 @@
             context.workbook.onSaved.add(handleWorkbookSaved);
             
             await context.sync();
+
+            // Capture initial selection content
+            captureActiveSelectionContent(context);
         }).catch(handleError);
         
         // We need to use event listeners for data changed events
@@ -247,8 +252,13 @@
                             changes: changedCells,
                             is_formula: currentFormulas.some(row => 
                                 row.some(cell => typeof cell === 'string' && cell.startsWith('='))
-                            )
+                            ),
+                            current_values: currentValues,
+                            current_formulas: currentFormulas
                         });
+
+                        // Also capture full content after edit
+                        captureContentIfNeeded(range);
                     }
                 }
                 
@@ -300,7 +310,7 @@
         Excel.run(async (context) => {
             // Get information about the selected range
             const range = context.workbook.getSelectedRange();
-            range.load('address,columnCount,rowCount,values,formulas');
+            range.load('address,columnCount,rowCount,values,formulas,numberFormat');
             
             await context.sync();
             
@@ -323,6 +333,9 @@
                 rows: range.rowCount,
                 cellCount: range.columnCount * range.rowCount
             });
+
+            // Capture cell content with throttling
+            captureContentIfNeeded(range);
         }).catch(handleError);
     }
     
@@ -356,6 +369,9 @@
                 id: sheet.id,
                 position: sheet.position
             });
+
+            // Capture active selection content when sheet is activated
+            captureActiveSelectionContent(context);
         }).catch(handleError);
     }
     
@@ -477,5 +493,68 @@
         const timestamp = new Date().toLocaleTimeString();
         log.innerHTML += `[${timestamp}] ${message}<br>`;
         log.scrollTop = log.scrollHeight;
+    }
+
+    // Capture cell content with throttling
+    function captureContentIfNeeded(range) {
+        const now = Date.now();
+        if (now - lastContentCapture > CONTENT_THROTTLE_TIME) {
+            lastContentCapture = now;
+            
+            // If range is already loaded, capture content directly
+            if (range && range.values) {
+                captureCellContent(range);
+            } else {
+                // Otherwise get active selection
+                captureActiveSelectionContent();
+            }
+        }
+    }
+    
+    // Capture content of active selection
+    function captureActiveSelectionContent(context) {
+        Excel.run(async (ctx) => {
+            // Use the provided context or create a new one
+            const runContext = context || ctx;
+            
+            // Get the current selection
+            const range = runContext.workbook.getSelectedRange();
+            range.load(['address', 'values', 'formulas', 'numberFormat', 'rowCount', 'columnCount']);
+            
+            await runContext.sync();
+            
+            captureCellContent(range);
+        }).catch(handleError);
+    }
+    
+    // Process and queue cell content event
+    function captureCellContent(range) {
+        if (!isLogging) return;
+        
+        // Skip if range is too large (more than 100 cells)
+        if (range.rowCount * range.columnCount > 100) {
+            // For large ranges, just capture dimensions and a sample
+            const sampleValues = range.values.slice(0, 3).map(row => row.slice(0, 3));
+            const sampleFormulas = range.formulas.slice(0, 3).map(row => row.slice(0, 3));
+            
+            queueEvent('cell_content', {
+                address: range.address,
+                rowCount: range.rowCount,
+                columnCount: range.columnCount,
+                is_large_range: true,
+                sample_values: sampleValues,
+                sample_formulas: sampleFormulas
+            });
+        } else {
+            // For smaller ranges, capture everything
+            queueEvent('cell_content', {
+                address: range.address,
+                rowCount: range.rowCount,
+                columnCount: range.columnCount,
+                values: range.values,
+                formulas: range.formulas,
+                numberFormat: range.numberFormat
+            });
+        }
     }
 })(); 
