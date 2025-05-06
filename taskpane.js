@@ -163,12 +163,21 @@
             sheet.onActivated.add(handleSheetActivated);
             sheet.onDeactivated.add(handleSheetDeactivated);
             
-            // Workbook events
-            context.workbook.onSaved.add(handleWorkbookSaved);
+            // Workbook events - wrapped in try/catch since onSaved might not be available
+            try {
+                if (context.workbook.onSaved) {
+                    context.workbook.onSaved.add(handleWorkbookSaved);
+                } else {
+                    console.log("workbook.onSaved event not available in this Excel version");
+                }
+            } catch (e) {
+                console.log("Unable to register workbook.onSaved handler:", e.message);
+            }
             
             await context.sync();
 
-            // Capture initial selection content
+            // Capture initial selection content and log debug info
+            console.log("About to capture initial cell content");
             captureActiveSelectionContent(context);
         }).catch(handleError);
         
@@ -531,12 +540,17 @@
     function captureCellContent(range) {
         if (!isLogging) return;
         
+        // Debug logging
+        console.log("captureCellContent called for range:", range.address);
+        appendToLog(`Capturing content for range: ${range.address}`);
+        
         // Skip if range is too large (more than 100 cells)
         if (range.rowCount * range.columnCount > 100) {
             // For large ranges, just capture dimensions and a sample
             const sampleValues = range.values.slice(0, 3).map(row => row.slice(0, 3));
             const sampleFormulas = range.formulas.slice(0, 3).map(row => row.slice(0, 3));
             
+            appendToLog(`Queueing large range content: ${range.rowCount}x${range.columnCount}`);
             queueEvent('cell_content', {
                 address: range.address,
                 rowCount: range.rowCount,
@@ -547,6 +561,7 @@
             });
         } else {
             // For smaller ranges, capture everything
+            appendToLog(`Queueing content for: ${range.address}, size: ${range.rowCount}x${range.columnCount}`);
             queueEvent('cell_content', {
                 address: range.address,
                 rowCount: range.rowCount,
